@@ -12,17 +12,6 @@ struct Grid {
   float y;
 };
 
-typedef std::pair<int, Grid> city;
-bool sort_x(const city& left, const city& right)
-{
-  return left.second.x < right.second.x ;
-}
-
-bool sort_y(const city& left, const city& right)
-{
-  return left.second.y < right.second.y ;
-}
-
 std::map<int, Grid> read_input(std::string filename) {
   std::ifstream ifs(filename);
   std::string x, y;
@@ -56,27 +45,6 @@ std::vector<std::vector<float>> calculateEachDistance(
   return dist;
 }
 
-float slope(Grid city1, Grid city2) {
-  return (city1.y - city2.y) / (city1.x - city2.x);
-}
-
-std::set<int> makeCircle(
-  Grid xmin, Grid xmax,Grid ymin, Grid ymax,
-  std::map<int, Grid>* cities) {
-  std::set<int> outCircle;
-  for (std::string::size_type i = 0; i < cities->size(); i++) {
-    Grid city = cities->at(i);
-    if ((city.y >  slope(xmin, ymax) * (city.x - xmin.x) + xmin.y)
-        || (city.y >  slope(xmax, ymax) * (city.x - xmax.x) + xmax.y)
-        || (city.y <  slope(xmin, ymin) * (city.x - xmin.x) + xmin.y) 
-        || (city.y <  slope(xmax, ymin) * (city.x - xmin.x) + xmin.y)) {
-      outCircle.insert(i);
-      cities->erase(i);
-    }
-  }
-  return outCircle;
-}
-
 int nearestCity(std::vector<std::vector<float>> dist,
                 std::set<int> unvisitedCities, int currentCity) {
   int minCity;
@@ -91,15 +59,11 @@ int nearestCity(std::vector<std::vector<float>> dist,
 }
 
 std::vector<int> solve(std::map<int, Grid> cities) {
-  int nextCity, currentCity = 0;
+ int nextCity, currentCity = 0;
   std::set<int> unvisitedCities, visitSoonCities;
-  std::map<int, Grid> xSort = cities;
-  std::map<int, Grid> ySort = cities;
   std::vector<int> solution{0};
   float sum = 0;
   int before = 0;
-  sort(xSort.begin(), xSort.end(), sort_x);
-  sort(ySort.begin(), ySort.end(), sort_y)
   for (std::string::size_type i = 1; i < cities.size(); i++) {
     unvisitedCities.insert(i);
   }
@@ -127,8 +91,8 @@ int main(int argc, char *argv[]) {
   std::map<int, Grid> cities = read_input(argv[1]);
   std::vector<int> solution = solve(cities);
   printf("index\n");
-  for (int city : solution) {
-    printf("%d\n", city);
+  for (auto city : cities) {
+    printf("%d\n", city.first);
   }
   return 0;
 }
