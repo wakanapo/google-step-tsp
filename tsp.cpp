@@ -9,14 +9,24 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <iterator> 
+#include <iterator>
 
-TSP::TSP(std::string filename, double crossoverProbability,
-         double mutationProbability) :
+#include <sys/time.h>
+
+namespace {
+  double getUs() {
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    return tv.tv_sec + (double)tv.tv_usec * 1E-6;
+  }
+}
+
+TSP::TSP(std::string inputfile, std::string datafile,
+         double crossoverProbability, double mutationProbability) :
   crossoverProbability(crossoverProbability),
   mutationProbability(mutationProbability) {
   srand((unsigned int)time(NULL));
-  std::ifstream ifs(filename);
+  std::ifstream ifs(inputfile);
   std::string x, y;
   int index = 0;
   getline(ifs, x);
@@ -28,23 +38,31 @@ TSP::TSP(std::string filename, double crossoverProbability,
     m_cities.push_back({stof(x), stof(y)});
     index++;
   }
-  m_chromenum = m_cities.size();
-  randomPopulation();
-  std::vector<std::vector<int>*> dummy(m_cities.size(),
-                                       (std::vector<int>*)(m_cities.size()));
-  newPopulation = dummy;
+  setFirstPopulation(datafile);
+  m_chromenum = solutions.size();
+  for (size_t i = 0; i < m_cities.size(); i++)
+    newPopulation.push_back(new std::vector<int>(m_cities.size()));
+  }
+
+void TSP::setFirstPopulation(std::string filename)
+{
+  std::ifstream ifs(filename);
+  std::string x;
+  getline(ifs, x);
+  while(1) {
+    auto* chromosone = new std::vector<int>(m_cities.size());
+    while (1) {
+      getline(ifs, x);
+      if (!ifs || !(std::all_of(x.cbegin(), x.cend(), isdigit)))
+        break;
+      chromosone->push_back(stof(x));
+    }
+    solutions.push_back(chromosone);
+    if (!ifs)
+      break;
+  }
 }
 
-void TSP::randomPopulation()
-{
-  for(size_t i = 0; i < m_chromenum; i++) {
-    std::vector<int> solution = makeRandomPath();
-    solutions.push_back(&solution);
-  }
-  for(size_t i = 0; i < m_chromenum; i++)
-    for (size_t j = 0; j < m_cities.size(); j++) 
-      std::cout << solutions[i]->at(j) << std::endl;
-}
 
 double TSP::getBestFitness() const
 {
@@ -59,16 +77,9 @@ double TSP::getAverageDistance() const
   return distance / m_chromenum;
 }
 
-std::string TSP::getBestPathString() const
+std::vector<int> TSP::getBestPath() const
 {
-  std::stringstream path;
-  for(size_t gene = 0; gene < m_cities.size(); ++gene)
-  {
-    if(gene != 0)
-      path << ",";
-    path << bestChromosone->at(gene);
-  }
-  return path.str();
+  return *bestChromosone;
 }
 
 double TSP::getLowestTotalDistance() const
@@ -78,9 +89,6 @@ double TSP::getLowestTotalDistance() const
 
 void TSP::nextPopulation()
 {
-  // for(size_t i = 0; i < m_chromenum; i++)
-  //   for (size_t j = 0; j < m_cities.size(); j++) 
-      // std::cerr << solutions[i]->at(j) << std::endl;
   std::vector<double> fitness(m_chromenum);
   for(size_t i = 0; i < m_chromenum; i++)
   {
@@ -143,9 +151,9 @@ bool TSP::hasDuplicate(std::vector<int>* chromosone, size_t populationCount)
 {
   for(size_t i = 0; i < populationCount; i++) {    
     if(*chromosone != *newPopulation[i])
-        return false;
-      else
-        return true;
+      return false;
+    else
+      return true;
   }
   return false;
 }
@@ -210,9 +218,9 @@ void TSP::crossover(std::vector<int>* parentA, std::vector<int>* parentB,
   *offspringB = *parentB;
 
   std::copy(parentB->begin() + start, parentB->begin() + end,
-       offspringA->begin() + start);
+            offspringA->begin() + start);
   std::copy(parentA->begin() + start, parentA->begin() + end,
-       offspringB->begin() + start);
+            offspringB->begin() + start);
 
   for(size_t i = 0; i < m_cities.size(); i++)
   {
@@ -229,7 +237,7 @@ void TSP::crossover(std::vector<int>* parentA, std::vector<int>* parentB,
     }
 
   }
-
+  double findBefore = getUs();
   for(size_t j = 0; j < m_cities.size(); j++)
   {
     if(offspringA->at(j) == -1)
@@ -237,10 +245,8 @@ void TSP::crossover(std::vector<int>* parentA, std::vector<int>* parentB,
     if(offspringB->at(j) == -1)
       repairOffspring(offspringB, j, offspringA);
   }
-   // for (int city : *offspringA)
-   //      std::cout << city << std::endl;
-
-    
+  double findAfter = getUs();
+  std::cerr << "Find loop Time: " << findAfter - findBefore << "[s]" << std::endl;
 }
 
 void TSP::repairOffspring(std::vector<int>* offspringToRepair, int missingIndex,
@@ -272,7 +278,6 @@ std::vector<int> TSP::rouletteSelection(std::vector<double>* fitness) const {
     sum += fitness->at(i);
   }
   double random = randomInclusive(sum);
-
   sum = 0;
   for(size_t i = 0; i < m_chromenum; i++)
   {
@@ -284,24 +289,6 @@ std::vector<int> TSP::rouletteSelection(std::vector<double>* fitness) const {
   }
   assert(false && "A chromosone should have been picked by now");
   return std::vector<int>{};
-}
-
-std::vector<int> TSP::makeRandomPath()
-{
-  std::vector<int> chromosone(m_cities.size());
-  for(size_t i = 0; i < m_cities.size(); i++)
-  {
-    chromosone[i] = i;
-  }
-
-  for(size_t i = m_cities.size() - 1; i > 0; i--)
-  {
-    int random = (int)randomInclusive(i);
-    int temp = chromosone[i];
-    chromosone[i] = chromosone[random];
-    chromosone[random] = temp;
-  }
-  return chromosone;
 }
 
 double TSP::evaluateFitness(std::vector<int>* chromosone) const
@@ -340,3 +327,4 @@ double TSP::randomInclusive(double max)
 {
   return ((double)rand() * max) / (double)RAND_MAX;
 }
+

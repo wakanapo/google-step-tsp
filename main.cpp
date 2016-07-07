@@ -3,21 +3,31 @@
 #include <limits>
 #include <assert.h>
 
-using namespace std;
+#include <sys/time.h>
+
+namespace {
+double getUs() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return tv.tv_sec + (double)tv.tv_usec * 1E-6;
+}
+}
 
 int main(int argc, const char *argv[])
 {
   /* 90% mutation probability, 2% mutation probability */
-  if (argc < 2) {
-    cout << "no input file" << endl;
+  if (argc < 3) {
+    std::cout << "example: ./a.out inputfile datafile" << std::endl;
     return -1;
   }
-  TSP *tsp = new TSP(argv[1], 0.9, 0.02);
+  TSP *tsp = new TSP(argv[1], argv[2], 0.9, 0.05);
   size_t generations = 0, generationsWithoutImprovement = 0;
   double bestFitness = -1;
+  std::vector<double> executionTimes;
+  double elapsedTime = 0;
   while(generationsWithoutImprovement < 10)
   {
-    std::cout << generations << std::endl;
+    double before = getUs();
     tsp->nextPopulation();
     ++generations;
     double newFitness = tsp->getBestFitness();
@@ -30,10 +40,18 @@ int main(int argc, const char *argv[])
     {
       ++generationsWithoutImprovement;
     }
+    double after = getUs();
+    executionTimes.push_back(after - before);
+    elapsedTime += after - before;
   }
-  cout << "index" << endl;
-  // for (string::size_type i = 0; i < tsp->getBestPathString().size(); i++)
-  cout << "\t-Path: " << tsp->getBestPathString() << endl;
+  std::cerr << "Total Time: " << elapsedTime << " [s]" << std::endl;
+  std::cerr << "Average per loop: "
+            << elapsedTime * 1E3 / executionTimes.size() << " [ms]"
+            << std::endl;
+  std::cout << "index" << std::endl;
+  for (std::string::size_type i = 0; i < tsp->getBestPath().size(); i++)
+    std::cout << tsp->getBestPath()[i] << std::endl;
   delete tsp;
   return 0;
 }
+
