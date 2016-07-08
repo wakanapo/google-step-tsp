@@ -41,6 +41,6 @@ class TSP
     void crossover(std::vector<int>* parentA, std::vector<int>* parentB,
                    std::vector<int>* offspringA, std::vector<int>* offspringB);
     bool hasDuplicate(std::vector<int>* chromosone, size_t populationCount);
-    void copyToNewPopulation(std::vector<int>* chromosone, size_t index);
+    void copyToNewPopulation(std::vector<int>* chromosone);
 };
 

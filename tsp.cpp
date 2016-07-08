@@ -11,16 +11,6 @@
 #include <vector>
 #include <iterator>
 
-#include <sys/time.h>
-
-namespace {
-  double getUs() {
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    return tv.tv_sec + (double)tv.tv_usec * 1E-6;
-  }
-}
-
 TSP::TSP(std::string inputfile, std::string datafile,
          double crossoverProbability, double mutationProbability) :
   crossoverProbability(crossoverProbability),
@@ -40,8 +30,6 @@ TSP::TSP(std::string inputfile, std::string datafile,
   }
   setFirstPopulation(datafile);
   m_chromenum = solutions.size();
-  for (size_t i = 0; i < m_cities.size(); i++)
-    newPopulation.push_back(new std::vector<int>(m_cities.size()));
   }
 
 void TSP::setFirstPopulation(std::string filename)
@@ -50,7 +38,7 @@ void TSP::setFirstPopulation(std::string filename)
   std::string x;
   getline(ifs, x);
   while(1) {
-    auto* chromosone = new std::vector<int>(m_cities.size());
+    auto* chromosone = new std::vector<int>;
     while (1) {
       getline(ifs, x);
       if (!ifs || !(std::all_of(x.cbegin(), x.cend(), isdigit)))
@@ -110,9 +98,9 @@ void TSP::nextPopulation()
   }
 
   size_t offspringCount = 0;
-  copyToNewPopulation(solutions[eliteIndex1], offspringCount);
+  copyToNewPopulation(solutions[eliteIndex1]);
   ++offspringCount;
-  copyToNewPopulation(solutions[eliteIndex2], offspringCount);
+  copyToNewPopulation(solutions[eliteIndex2]);
   ++offspringCount;
   while(true)
   {    
@@ -124,26 +112,26 @@ void TSP::nextPopulation()
     {
       parentB = rouletteSelection(&fitness);
     }
-    std::vector<int> offspringA(m_cities.size());
-    std::vector<int> offspringB(m_cities.size());
-    crossover(&parentA, &parentB, &offspringA, &offspringB);
-    mutate(&offspringA);
-    mutate(&offspringB);
+    std::vector<int>* offspringA = new std::vector<int>(m_cities.size());
+    std::vector<int>* offspringB = new std::vector<int>(m_cities.size());
+    crossover(&parentA, &parentB, offspringA, offspringB);
+    mutate(offspringA);
+    mutate(offspringB);
 
-    if(!hasDuplicate(&offspringA, offspringCount)) {
-      copyToNewPopulation(&offspringA, offspringCount);
+    if(!hasDuplicate(offspringA, offspringCount)) {
+      copyToNewPopulation(offspringA);
       ++offspringCount;
     }
     if(offspringCount == m_chromenum)
       break;
-    if(!hasDuplicate(&offspringB, offspringCount)) {
-      copyToNewPopulation(&offspringB, offspringCount);
+    if(!hasDuplicate(offspringB, offspringCount)) {
+      copyToNewPopulation(offspringB);
       ++offspringCount;
     }
     if(offspringCount == m_chromenum)
       break;
   }
-  for(size_t i = 0; i < m_chromenum; i++)
+  for(size_t i = 0; i < m_chromenum; i++) 
     solutions[i] = newPopulation[i];
 }
 
@@ -237,7 +225,6 @@ void TSP::crossover(std::vector<int>* parentA, std::vector<int>* parentB,
     }
 
   }
-  double findBefore = getUs();
   for(size_t j = 0; j < m_cities.size(); j++)
   {
     if(offspringA->at(j) == -1)
@@ -245,8 +232,6 @@ void TSP::crossover(std::vector<int>* parentA, std::vector<int>* parentB,
     if(offspringB->at(j) == -1)
       repairOffspring(offspringB, j, offspringA);
   }
-  double findAfter = getUs();
-  std::cerr << "Find loop Time: " << findAfter - findBefore << "[s]" << std::endl;
 }
 
 void TSP::repairOffspring(std::vector<int>* offspringToRepair, int missingIndex,
@@ -265,10 +250,10 @@ void TSP::repairOffspring(std::vector<int>* offspringToRepair, int missingIndex,
   }
 }
 
-void TSP::copyToNewPopulation(std::vector<int>* chromosone, size_t index)
+void TSP::copyToNewPopulation(std::vector<int>* chromosone)
 {
-  assert(index < m_chromenum && "Index out of bounds");
-  *newPopulation[index] = *chromosone;
+  assert("Index out of bounds");
+  newPopulation.push_back(chromosone);
 }
 
 std::vector<int> TSP::rouletteSelection(std::vector<double>* fitness) const {
